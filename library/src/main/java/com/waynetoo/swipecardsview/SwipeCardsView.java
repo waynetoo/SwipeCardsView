@@ -325,7 +325,7 @@ public class SwipeCardsView extends LinearLayout {
                         }
                     }
 
-                    moveTopView(deltaX, deltaY);
+                    moveTopView(deltaX, deltaY, mIsPull);
                     invalidate();
                     sendCancelEvent();
                     return true;
@@ -404,9 +404,13 @@ public class SwipeCardsView extends LinearLayout {
         return false;
     }
 
-    private void moveTopView(int deltaX, int deltaY) {
+    private void moveTopView(int deltaX, int deltaY, boolean isPull) {
         View topView = getTopView();
         if (topView != null) {
+            if (isPull && topView.getTop() >= initTop) {
+                return;
+            }
+
 //            topView.offsetLeftAndRight(deltaX);
             topView.offsetTopAndBottom(deltaY);
             //透明度处理
@@ -422,7 +426,7 @@ public class SwipeCardsView extends LinearLayout {
             }
             float alpha = 1.0f - v;
             topView.setAlpha(alpha);
-            processLinkageView(topView, alpha);
+            processLinkageView(topView, alpha, isPull);
         }
     }
 
@@ -618,7 +622,7 @@ public class SwipeCardsView extends LinearLayout {
             final int dx = x - topView.getLeft();
             final int dy = y - topView.getTop();
             if (y != mScroller.getFinalY()) {
-                moveTopView(0/*dx*/, dy);
+                moveTopView(0/*dx*/, dy, dy > 0);
             }
             ViewCompat.postInvalidateOnAnimation(this);
         } else {
@@ -711,14 +715,20 @@ public class SwipeCardsView extends LinearLayout {
      * @param changedView 顶层的卡片view
      * @param alpha
      */
-    private void processLinkageView(View changedView, float alpha) {
+    private void processLinkageView(View changedView, float alpha, boolean isPull) {
         int changeViewLeft = changedView.getLeft();
         int changeViewTop = changedView.getTop();
         int distance = Math.abs(changeViewTop - initTop) + Math.abs(changeViewLeft - initLeft);
-        float rate = distance / (float) MAX_SLIDE_DISTANCE_LINKAGE;
-        Log.i(TAG, "processLinkageView:  rate=" + rate + "   distance=" + distance + "  height =" + (initTop + mCardHeight));
+        if (isPull) {
+            distance = Math.abs(changeViewTop + initTop + mCardHeight);
+        }
+        float rate = distance / ((float) MAX_SLIDE_DISTANCE_LINKAGE * 2f);
+        Log.i(TAG, "processLinkageView:  rate=" + rate + "   distance=" + distance + "  height =" + (initTop + mCardHeight) + " distance  " + Math.abs(changeViewTop + (initTop + mCardHeight)));
         for (int i = 1; i < viewList.size(); i++) {
             float rate3 = rate - 0.2f * i;
+            if (isPull) {
+                rate3 = 1 - rate3;
+            }
             if (rate3 > 1) {
                 rate3 = 1;
             } else if (rate3 < 0) {
@@ -730,7 +740,7 @@ public class SwipeCardsView extends LinearLayout {
 
     // 由index对应view变成index-1对应的view
     private void ajustLinkageViewItem(View changedView, float rate, float v, int index) {
-        Log.i(TAG, "ajustLinkageViewItem: rate=" + rate + "  alpha=" + v);
+//        Log.i(TAG, "ajustLinkageViewItem: rate=" + rate + "  alpha=" + v);
         int changeIndex = viewList.indexOf(changedView);
         if (viewList.size() - 1 > index) {
             int initPosY = yOffsetStep * index;
